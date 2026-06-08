@@ -4,10 +4,10 @@ import random
 import string
 
 app = Flask(__name__)
-app.secret_key = "crown-shadow-dev-key"
+app.secret_key = "crown-shadow-key"
 
-# IMPORTANT: async_mode fix for deployment
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+# IMPORTANT: avoid eventlet crash issues
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 games = {}
 
@@ -16,24 +16,13 @@ PHASES = ["decree", "intrigue", "petition", "reckoning"]
 HOUSES = [
     {"name": "Wolf", "emoji": "🐺"},
     {"name": "Raven", "emoji": "🦅"},
-    {"name": "Rose", "emoji": "🌸"},
+    {"name": "Rose", "emoji": "🌹"},
     {"name": "Lion", "emoji": "🦁"},
 ]
 
-DECREES = [
-    "All houses must send tribute to the crown.",
-    "Silence is mandatory in court.",
-    "A noble must be publicly shamed or honored.",
-    "Trade is restricted this cycle.",
-]
 
-
-def room_code():
+def code():
     return ''.join(random.choices(string.ascii_uppercase, k=5))
-
-
-def next_phase(p):
-    return PHASES[(PHASES.index(p) + 1) % len(PHASES)]
 
 
 def new_player(name):
@@ -46,23 +35,12 @@ def new_player(name):
     }
 
 
-def init_game():
+def new_game():
     return {
         "players": [],
         "phase": "decree",
-        "decree": random.choice(DECREES),
+        "decree": "The King demands loyalty.",
         "winner": None
-    }
-
-
-def calculate_winner(room):
-    players = games[room]["players"]
-    if not players:
-        return None
-
-    return {
-        "regent": max(players, key=lambda p: p["influence"])["name"],
-        "traitor": max(players, key=lambda p: p["scandal"])["name"]
     }
 
 
@@ -73,33 +51,29 @@ def home():
 
 @app.route("/create", methods=["POST"])
 def create():
-    code = room_code()
-    games[code] = init_game()
-    session["room"] = code
-    return redirect(f"/lobby/{code}")
+    c = code()
+    games[c] = new_game()
+    session["room"] = c
+    return redirect(f"/lobby/{c}")
 
 
 @app.route("/join", methods=["POST"])
 def join():
-    code = request.form.get("room_code", "").upper()
-    if code in games:
-        session["room"] = code
-        return redirect(f"/lobby/{code}")
-    return "Room not found", 404
+    c = request.form.get("room_code", "").upper()
+    if c in games:
+        session["room"] = c
+        return redirect(f"/lobby/{c}")
+    return "Room not found"
 
 
-@app.route("/lobby/<code>")
-def lobby(code):
-    if code not in games:
-        return "Invalid room", 404
-
-    g = games[code]
-    return render_template("lobby.html", room_code=code, players=g["players"], phase=g["phase"], decree=g["decree"], winner=g["winner"])
+@app.route("/lobby/<c>")
+def lobby(c):
+    return render_template("lobby.html", room=c, game=games[c])
 
 
 # ---------------- SOCKET ----------------
 
-@socketio.on("join_room")
+@socketio.on("join")
 def on_join(data):
     room = data["room"]
     name = data["name"]
@@ -107,7 +81,7 @@ def on_join(data):
     join_room(room)
     games[room]["players"].append(new_player(name))
 
-    emit("sync", games[room], room=room)
+    emit("update", games[room], room=room)
 
 
 @socketio.on("action")
@@ -124,31 +98,22 @@ def action(data):
                 p["influence"] += 1
             elif act == "sabotage":
                 p["scandal"] += 2
-            elif act == "loyalty":
-                p["influence"] += 2
-                p["gold"] -= 1
 
-    emit("sync", games[room], room=room)
+    emit("update", games[room], room=room)
 
 
 @socketio.on("next")
 def next_phase(data):
     room = data["room"]
-
     g = games[room]
-    g["phase"] = next_phase(g["phase"])
 
-    if g["phase"] == "decree":
-        g["decree"] = random.choice(DECREES)
+    idx = PHASES.index(g["phase"])
+    g["phase"] = PHASES[(idx + 1) % len(PHASES)]
 
-    if g["phase"] == "reckoning":
-        g["winner"] = calculate_winner(room)
-        emit("game_over", g["winner"], room=room)
-
-    emit("sync", g, room=room)
+    emit("update", g, room=room)
 
 
-# ---------------- RUN ----------------
+# ---------------- RUN SERVER ----------------
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=10000)
+    socketio.run(app, host="127.0.0.1", port=5050, debug=True)

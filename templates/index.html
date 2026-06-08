@@ -1,31 +1,22 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>The Crown's Shadow</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
 
-<div class="card">
+<h1>🏰 The Crown's Shadow</h1>
 
-    <h1>👑 The Crown's Shadow</h1>
+<form action="/create" method="POST">
+    <button>Create Game</button>
+</form>
 
-    <p class="subtitle">
-        The King is dying… The Court awakens.
-    </p>
+<br>
 
-    <form action="/create" method="POST">
-        <button class="primary">✨ Create Court</button>
-    </form>
-
-    <form action="/join" method="POST">
-        <input type="text" name="room_code" placeholder="Enter Court Code">
-        <button>Enter Court</button>
-    </form>
-
-</div>
+<form action="/join" method="POST">
+    <input name="room_code" placeholder="Room Code">
+    <button>Join Game</button>
+</form>
 
 </body>
 </html>
