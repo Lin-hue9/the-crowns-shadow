@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>The Crown's Shadow</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="card">
+
+    <h1>👑 The Crown's Shadow</h1>
+
+    <p class="subtitle">
+        The King is dying… The Court awakens.
+    </p>
+
+    <form action="/create" method="POST">
+        <button class="primary">✨ Create Court</button>
+    </form>
+
+    <form action="/join" method="POST">
+        <input type="text" name="room_code" placeholder="Enter Court Code">
+        <button>Enter Court</button>
+    </form>
+
+</div>
+
+</body>
+</html>

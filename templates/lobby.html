@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>The Crown's Shadow</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="card">
+
+    <h1>🏰 Court {{ room_code }}</h1>
+
+    <p class="subtitle" id="phase">Phase: {{ phase }}</p>
+    <p class="subtitle" id="decree">👑 {{ decree }}</p>
+
+    {% if winner %}
+    <div class="box">
+        <h2>👑 GAME OVER</h2>
+        <p>Regent: {{ winner.regent }}</p>
+        <p>Traitor: {{ winner.traitor }}</p>
+    </div>
+    {% endif %}
+
+    <div class="box">
+        <h2>Nobles</h2>
+        <div id="players"></div>
+    </div>
+
+    <div class="box">
+        <h2>Actions</h2>
+        <button onclick="act('gold')">💰 Gold</button>
+        <button onclick="act('rumor')">🕯 Rumor</button>
+        <button onclick="act('sabotage')">🗡 Sabotage</button>
+        <button onclick="act('loyalty')">🤝 Loyalty</button>
+    </div>
+
+    <div class="box">
+        <h2>Accuse</h2>
+        <input id="a" placeholder="Accuser">
+        <input id="t" placeholder="Target">
+        <button onclick="accuse()">Send</button>
+    </div>
+
+    <input id="name" placeholder="Name">
+    <button onclick="join()">Join</button>
+    <button onclick="next()">Next Phase</button>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+const socket = io();
+const room = "{{ room_code }}";
+
+function join() {
+    socket.emit("join_room", {
+        room: room,
+        name: document.getElementById("name").value
+    });
+}
+
+function act(a) {
+    socket.emit("action", {
+        room: room,
+        name: document.getElementById("name").value,
+        action: a
+    });
+}
+
+function accuse() {
+    socket.emit("accuse", {
+        room: room,
+        accuser: document.getElementById("a").value,
+        target: document.getElementById("t").value
+    });
+}
+
+function next() {
+    socket.emit("next", { room });
+}
+
+socket.on("sync", (g) => {
+
+    document.getElementById("phase").innerText = "Phase: " + g.phase;
+    document.getElementById("decree").innerText = "👑 " + g.decree;
+
+    let html = "";
+
+    g.players.forEach(p => {
+        html += `
+        <p>
+            ${p.house.emoji} ${p.name} (${p.house.name})
+            ⭐${p.influence} 💰${p.gold} ⚖️${p.scandal}
+        </p>`;
+    });
+
+    document.getElementById("players").innerHTML = html;
+});
+
+socket.on("game_over", (data) => {
+    alert("Regent: " + data.regent + " | Traitor: " + data.traitor);
+});
+</script>
+
+</body>
+</html>
