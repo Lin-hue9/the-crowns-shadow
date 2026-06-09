@@ -1,22 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Crown's Shadow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1030 50%, #0d0d1a 100%);
+            min-height: 100vh;
+            color: #f4ecd8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 56px;
+            background: linear-gradient(135deg, #d4af37, #ffb347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+        .tagline {
+            font-size: 18px;
+            font-style: italic;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: rgba(26, 31, 58, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 24px;
+            padding: 40px;
+            min-width: 300px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            margin: 15px 0;
+            border-radius: 12px;
+            font-size: 18px;
+            cursor: pointer;
+            font-family: 'Georgia', serif;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #d4af37, #b8960c);
+            color: #0a0a1a;
+            border: none;
+            font-weight: bold;
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            color: #f4ecd8;
+        }
+        input {
+            width: 100%;
+            padding: 14px;
+            margin: 15px 0;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            color: #f4ecd8;
+            text-align: center;
+        }
+        .divider {
+            margin: 20px 0;
+            color: rgba(244, 236, 216, 0.3);
+        }
+    </style>
 </head>
 <body>
-
-<h1>🏰 The Crown's Shadow</h1>
-
-<form action="/create" method="POST">
-    <button>Create Game</button>
-</form>
-
-<br>
-
-<form action="/join" method="POST">
-    <input name="room_code" placeholder="Room Code">
-    <button>Join Game</button>
-</form>
-
+<div class="container">
+    <h1>🏰 THE CROWN'S SHADOW</h1>
+    <div class="tagline">A Game of Intrigue, Betrayal, and Power</div>
+    <div class="card">
+        <form action="/create" method="POST">
+            <button type="submit" class="btn btn-primary">✨ Create New Game</button>
+        </form>
+        <div class="divider">— OR —</div>
+        <form action="/join" method="POST">
+            <input type="text" name="room_code" placeholder="Enter Room Code" required>
+            <button type="submit" class="btn btn-secondary">🔑 Join Existing Game</button>
+        </form>
+    </div>
+</div>
 </body>
 </html>

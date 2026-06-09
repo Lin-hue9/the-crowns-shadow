@@ -1,66 +1,372 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lobby</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Crown's Shadow - Court</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1030 50%, #0d0d1a 100%);
+            min-height: 100vh;
+            color: #f4ecd8;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(26, 31, 58, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        h1 {
+            font-size: 28px;
+            background: linear-gradient(135deg, #d4af37, #ffb347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .phase-badge {
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid #d4af37;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .room-code {
+            font-family: monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: #d4af37;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(26, 31, 58, 0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .panel h3 {
+            color: #d4af37;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .player-list {
+            list-style: none;
+        }
+
+        .player-card {
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid #d4af37;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .decree-card {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(0, 0, 0, 0.4));
+            border: 1px solid #d4af37;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .decree-text {
+            font-size: 18px;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .action-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 10px;
+            padding: 12px;
+            color: #f4ecd8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: #d4af37;
+        }
+
+        .log-area {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            color: #f4ecd8;
+            margin-bottom: 10px;
+        }
+
+        .accuse-btn {
+            width: 100%;
+            background: rgba(139, 38, 53, 0.6);
+            border: 1px solid #8b2635;
+            padding: 10px;
+            border-radius: 8px;
+            color: #f4ecd8;
+            cursor: pointer;
+        }
+
+        .accuse-btn:hover {
+            background: #8b2635;
+        }
+
+        .accusation-item {
+            background: rgba(139, 38, 53, 0.2);
+            border-left: 3px solid #8b2635;
+            padding: 8px;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+
+        .next-phase-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #d4af37, #b8960c);
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            color: #0a0a1a;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .next-phase-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .join-area {
+            margin-top: 20px;
+        }
+
+        .join-area button {
+            width: 100%;
+            padding: 10px;
+            background: #d4af37;
+            border: none;
+            border-radius: 8px;
+            color: #0a0a1a;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @media (max-width: 1000px) {
+            .game-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
+<div class="container">
+    <div class="header">
+        <div><h1>🏰 THE CROWN'S SHADOW</h1></div>
+        <div class="phase-badge" id="phaseBadge">DECREE</div>
+        <div class="room-code">Room: {{ room_code }}</div>
+    </div>
 
-<h1>Room: {{ room }}</h1>
+    <div class="game-grid">
+        <div class="panel">
+            <h3>👥 HOUSES</h3>
+            <ul class="player-list" id="playerList">
+                <li>No players yet...</li>
+            </ul>
+            <div class="join-area">
+                <input type="text" id="playerName" placeholder="Your noble name">
+                <button id="joinBtn">✨ Join Court</button>
+            </div>
+        </div>
 
-<h3 id="phase">Phase: {{ game.phase }}</h3>
+        <div class="panel">
+            <div class="decree-card">
+                <div>👑 THE KING'S DECREE 👑</div>
+                <div class="decree-text" id="decreeText">{{ decree }}</div>
+            </div>
 
-<input id="name" placeholder="Name">
-<button onclick="join()">Join</button>
+            <h3>⚔️ ACTIONS</h3>
+            <div class="action-grid">
+                <button class="action-btn" data-action="💰 Fund Armies">💰 Fund Armies</button>
+                <button class="action-btn" data-action="✉️ Forge Letter">✉️ Forge Letter</button>
+                <button class="action-btn" data-action="🎭 Host Salon">🎭 Host Salon</button>
+                <button class="action-btn" data-action="💔 Blackmail">💔 Blackmail</button>
+            </div>
 
-<br><br>
+            <div class="log-area">
+                <strong>📜 Whispers</strong>
+                <div id="logContent">Waiting...</div>
+            </div>
 
-<button onclick="act('gold')">💰 Gold</button>
-<button onclick="act('rumor')">🕯 Rumor</button>
-<button onclick="act('sabotage')">🗡 Sabotage</button>
+            <button class="next-phase-btn" id="nextPhaseBtn">⏩ NEXT PHASE</button>
+        </div>
 
-<br><br>
-
-<button onclick="next()">Next Phase</button>
-
-<div id="players"></div>
-
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+        <div class="panel">
+            <h3>⚖️ ACCUSATIONS</h3>
+            <input type="text" id="accuseTarget" placeholder="Who do you accuse?">
+            <button class="accuse-btn" id="accuseBtn">🔨 DECLARE TREASON</button>
+            <div id="accusationsList" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
 
 <script>
-const socket = io();
-const room = "{{ room }}";
+    const socket = io();
+    const roomCode = "{{ room_code }}";
+    let currentPlayer = null;
 
-function join(){
-    socket.emit("join", {
-        room: room,
-        name: document.getElementById("name").value
+    const playerListEl = document.getElementById('playerList');
+    const phaseBadge = document.getElementById('phaseBadge');
+    const decreeText = document.getElementById('decreeText');
+    const logContent = document.getElementById('logContent');
+    const accusationsList = document.getElementById('accusationsList');
+    const playerNameInput = document.getElementById('playerName');
+    const joinBtn = document.getElementById('joinBtn');
+    const accuseTarget = document.getElementById('accuseTarget');
+    const accuseBtn = document.getElementById('accuseBtn');
+    const nextPhaseBtn = document.getElementById('nextPhaseBtn');
+
+    joinBtn.onclick = () => {
+        const name = playerNameInput.value.trim();
+        if (name) {
+            currentPlayer = name;
+            localStorage.setItem('crown_player', name);
+            socket.emit('join_room', { room: roomCode, name: name });
+            joinBtn.disabled = true;
+            joinBtn.textContent = 'Joined!';
+        }
+    };
+
+    document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.onclick = () => {
+            if (currentPlayer) {
+                socket.emit('take_action', {
+                    room: roomCode,
+                    name: currentPlayer,
+                    action: btn.getAttribute('data-action')
+                });
+            } else {
+                alert('Join the court first!');
+            }
+        };
     });
-}
 
-function act(a){
-    socket.emit("action", {
-        room: room,
-        name: document.getElementById("name").value,
-        action: a
+    accuseBtn.onclick = () => {
+        if (currentPlayer) {
+            const target = accuseTarget.value.trim();
+            if (target) {
+                socket.emit('accuse', {
+                    room: roomCode,
+                    accuser: currentPlayer,
+                    target: target
+                });
+                accuseTarget.value = '';
+            }
+        } else {
+            alert('Join the court first!');
+        }
+    };
+
+    nextPhaseBtn.onclick = () => {
+        socket.emit('next_phase', { room: roomCode });
+    };
+
+    socket.on('update_players', (players) => {
+        if (!players.length) {
+            playerListEl.innerHTML = '<li>No players yet...</li>';
+            return;
+        }
+        playerListEl.innerHTML = players.map(p => 
+            `<li class="player-card"><span>${escapeHtml(p.name)}</span><span>${p.house.emoji} ${p.house.name}</span></li>`
+        ).join('');
     });
-}
 
-function next(){
-    socket.emit("next", {room});
-}
-
-socket.on("update", (g) => {
-
-    document.getElementById("phase").innerText = "Phase: " + g.phase;
-
-    let html = "";
-    g.players.forEach(p => {
-        html += `<p>${p.house.emoji} ${p.name} | 💰${p.gold} ⭐${p.influence} ⚖️${p.scandal}</p>`;
+    socket.on('update_phase', (data) => {
+        phaseBadge.textContent = (data.phase || 'decree').toUpperCase();
+        decreeText.textContent = data.decree || 'No decree';
     });
 
-    document.getElementById("players").innerHTML = html;
-});
+    socket.on('action_update', (data) => {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `🕯️ ${escapeHtml(data.player)}: ${escapeHtml(data.action)}`;
+        logContent.prepend(entry);
+        if (logContent.children.length > 10) logContent.removeChild(logContent.lastChild);
+    });
+
+    socket.on('new_accusation', (acc) => {
+        const item = document.createElement('div');
+        item.className = 'accusation-item';
+        item.innerHTML = `⚠️ ${escapeHtml(acc)}`;
+        accusationsList.prepend(item);
+        if (accusationsList.children.length > 10) accusationsList.removeChild(accusationsList.lastChild);
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 </script>
-
 </body>
 </html>
