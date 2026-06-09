@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>The Chronicle - The Crown's Shadow</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1030 100%);
+            min-height: 100vh;
+            color: #f4ecd8;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(26,31,58,0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid #d4af37;
+            border-radius: 24px;
+            padding: 40px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            background: linear-gradient(135deg, #d4af37, #ffb347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 20px;
+        }
+        .sub {
+            text-align: center;
+            font-style: italic;
+            margin-bottom: 40px;
+            border-bottom: 1px solid rgba(212,175,55,0.3);
+            padding-bottom: 20px;
+        }
+        .winner-card {
+            background: linear-gradient(135deg, rgba(212,175,55,0.2), rgba(0,0,0,0.5));
+            border: 2px solid #d4af37;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .winner-name {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        .winner-house {
+            font-size: 64px;
+        }
+        .section-title {
+            font-size: 28px;
+            color: #d4af37;
+            margin: 30px 0 20px;
+            border-left: 4px solid #d4af37;
+            padding-left: 15px;
+        }
+        .house-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .house-card {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 12px;
+            padding: 15px;
+        }
+        .letter-log {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .letter-entry {
+            padding: 8px;
+            border-bottom: 1px solid rgba(212,175,55,0.2);
+        }
+        .btn {
+            display: inline-block;
+            background: #d4af37;
+            color: #0a0a1a;
+            padding: 12px 24px;
+            border-radius: 40px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 30px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📜 THE CHRONICLE OF SHADOWS</h1>
+    <div class="sub">A tale of intrigue, betrayal, and power concluded in Season {{ game.season }}</div>
+
+    <div class="winner-card">
+        <div class="winner-house">👑</div>
+        <div class="winner-name">{{ game.winner }}</div>
+        <div>
+            {% for player in game.players %}
+                {% if player.name == game.winner %}
+                    House of {{ player.house_name }}
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div style="margin-top: 15px;">has claimed the throne and written their legacy into history.</div>
+    </div>
+
+    <div class="section-title">🏰 The Fates of Houses</div>
+    <div class="house-summary">
+        {% for player in game.players %}
+        <div class="house-card">
+            <div style="font-size: 32px;">{{ player.house_emoji }}</div>
+            <div style="font-weight: bold; margin: 5px 0;">{{ player.name }}</div>
+            <div>{{ player.house_name }}</div>
+            <div style="margin-top: 10px; font-size: 13px;">⚡ Influence: {{ player.influence }} | 🔥 Scandal: {{ player.scandal }}</div>
+            <div style="font-size: 12px; margin-top: 5px;">Vice: {{ player.vice }}</div>
+            {% if player.name == game.winner %}
+            <div style="color: #d4af37; margin-top: 8px;">★ VICTOR ★</div>
+            {% elif player.scandal > 5 %}
+            <div style="color: #ff6b6b; margin-top: 8px;">✘ Exiled in Shame</div>
+            {% else %}
+            <div style="color: #87ceeb; margin-top: 8px;">Survived</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-title">✉️ Sealed Letters & Forgeries</div>
+    <div class="letter-log">
+        {% if game.letters %}
+            {% for letter in game.letters %}
+            <div class="letter-entry">
+                <strong>Season {{ letter.season }}</strong> – {{ letter.author }} wrote:<br>
+                <em>"{{ letter.content[:100] }}{% if letter.content|length > 100 %}...{% endif %}"</em><br>
+                {% if letter.is_forged %}
+                <span style="color: #ff6b6b;">⚠️ This letter was a FORGERY! {{ letter.author }} gained scandal.</span>
+                {% else %}
+                <span style="color: #90ee90;">✓ Genuine letter.</span>
+                {% endif %}
+                {% if letter.revealed %} (Revealed in court){% else %} (Never revealed){% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div>No letters were written this game.</div>
+        {% endif %}
+    </div>
+
+    <div class="section-title">🌾 Final Realm State</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>Faith: {{ game.realm.faith }}%</div>
+        <div>Army: {{ game.realm.army }}%</div>
+        <div>Grain: {{ game.realm.grain }}%</div>
+        <div>Unrest: {{ game.realm.unrest }}%</div>
+    </div>
+
+    <div style="text-align: center;">
+        <a href="/" class="btn">🏰 Return to the Great Hall</a>
+    </div>
+    <div class="footer">"In the game of crowns, you either win or fade into shadow..."</div>
+</div>
+</body>
+</html>
+

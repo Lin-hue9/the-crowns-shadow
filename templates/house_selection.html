@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Choose Your House - The Crown's Shadow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1030 100%);
+            min-height: 100vh;
+            color: #f4ecd8;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            background: linear-gradient(135deg, #d4af37, #ffb347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+        .sub {
+            text-align: center;
+            margin-bottom: 40px;
+            font-style: italic;
+            color: rgba(244,236,216,0.7);
+        }
+        .house-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .house-card {
+            background: rgba(26,31,58,0.7);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .house-card.selected {
+            border-color: #d4af37;
+            background: rgba(212,175,55,0.15);
+            box-shadow: 0 0 20px rgba(212,175,55,0.3);
+        }
+        .house-emoji {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .house-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .house-power {
+            font-size: 12px;
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+        .vice-section {
+            background: rgba(26,31,58,0.7);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .vice-title {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .vice-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+        .vice-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(212,175,55,0.4);
+            border-radius: 40px;
+            padding: 8px 20px;
+            color: #f4ecd8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .vice-btn.selected {
+            background: #d4af37;
+            color: #0a0a1a;
+            border-color: #d4af37;
+        }
+        .enter-btn {
+            display: block;
+            width: 300px;
+            margin: 40px auto 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #d4af37, #b8960c);
+            border: none;
+            border-radius: 40px;
+            color: #0a0a1a;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .enter-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1>🏰 THE CROWN'S SHADOW</h1>
+    <div class="sub">Choose your House and secret Vice</div>
+    
+    <div class="house-grid" id="houseGrid">
+        {% for key, house in houses.items() %}
+        <div class="house-card" data-house="{{ key }}">
+            <div class="house-emoji">{{ house.emoji }}</div>
+            <div class="house-name">{{ house.name }}</div>
+            <div class="house-power">{{ house.power }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="vice-section">
+        <div class="vice-title">🔮 Secret Vice (hidden until too much scandal)</div>
+        <div class="vice-buttons" id="viceButtons">
+            {% for vice in vices %}
+            <button class="vice-btn" data-vice="{{ vice }}">{{ vice }}</button>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <button class="enter-btn" id="enterBtn" disabled>⚔️ Enter the Court</button>
+    <div id="errorMsg" class="error"></div>
+</div>
+
+<script>
+    const socket = io();
+    const roomCode = "{{ room_code }}";
+    let selectedHouse = null;
+    let selectedVice = null;
+    let playerName = localStorage.getItem('crown_player_name') || prompt("Enter your noble name:") || "Anonymous";
+    localStorage.setItem('crown_player_name', playerName);
+    
+    // House selection
+    document.querySelectorAll('.house-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.house-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedHouse = card.dataset.house;
+            updateEnterButton();
+        });
+    });
+    
+    // Vice selection
+    document.querySelectorAll('.vice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.vice-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedVice = btn.dataset.vice;
+            updateEnterButton();
+        });
+    });
+    
+    function updateEnterButton() {
+        document.getElementById('enterBtn').disabled = !(selectedHouse && selectedVice);
+    }
+    
+    document.getElementById('enterBtn').onclick = () => {
+        socket.emit('select_house', {
+            room: roomCode,
+            name: playerName,
+            house_id: selectedHouse,
+            vice: selectedVice
+        });
+    };
+    
+    socket.on('house_selected', (data) => {
+        if (data.success) {
+            window.location.href = `/game/${roomCode}`;
+        } else {
+            document.getElementById('errorMsg').innerText = data.error || "Failed to join. Try a different name.";
+        }
+    });
+</script>
+</body>
+</html>

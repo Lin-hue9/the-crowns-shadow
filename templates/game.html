@@ -1,0 +1,388 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Crown's Shadow - Game</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1030 100%);
+            min-height: 100vh;
+            color: #f4ecd8;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        /* Header */
+        .header {
+            background: rgba(26,31,58,0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        h1 { font-size: 28px; background: linear-gradient(135deg, #d4af37, #ffb347); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .phase-badge { background: rgba(212,175,55,0.2); border: 1px solid #d4af37; padding: 8px 20px; border-radius: 40px; font-weight: bold; }
+        .room-code { font-family: monospace; font-size: 20px; color: #d4af37; }
+        /* Main grid */
+        .game-grid { display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px; }
+        @media (max-width: 1000px) { .game-grid { grid-template-columns: 1fr; } }
+        /* Panels */
+        .panel {
+            background: rgba(26,31,58,0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(212,175,55,0.2);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .panel h3 { color: #d4af37; margin-bottom: 15px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 8px; }
+        /* Realm tracks */
+        .track {
+            margin-bottom: 15px;
+        }
+        .track-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+        .track-bar {
+            height: 8px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .track-fill { height: 100%; width: 0%; transition: width 0.5s ease; }
+        /* Player list */
+        .player-card {
+            background: rgba(0,0,0,0.3);
+            border-left: 3px solid #d4af37;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .player-name { font-weight: bold; display: flex; justify-content: space-between; }
+        .player-stats { display: flex; gap: 10px; font-size: 12px; margin-top: 5px; color: rgba(244,236,216,0.7); }
+        /* Decree */
+        .decree-card {
+            background: linear-gradient(135deg, rgba(212,175,55,0.1), rgba(0,0,0,0.4));
+            border: 1px solid #d4af37;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .decree-text { font-style: italic; margin-top: 8px; }
+        /* Action buttons */
+        .action-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin: 20px 0; }
+        .action-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(212,175,55,0.4);
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: rgba(212,175,55,0.2); transform: translateY(-2px); }
+        /* Letter list */
+        .letter-item {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .letter-item:hover { border-color: #d4af37; }
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #1a1f3a;
+            border: 2px solid #d4af37;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .modal-content textarea, .modal-content select, .modal-content input {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #d4af37;
+            color: #f4ecd8;
+            border-radius: 8px;
+        }
+        .modal-content button { margin-top: 10px; padding: 10px 20px; background: #d4af37; border: none; border-radius: 8px; cursor: pointer; }
+        .log-area { max-height: 200px; overflow-y: auto; margin: 15px 0; font-size: 13px; }
+        .log-entry { padding: 5px 0; border-bottom: 1px solid rgba(212,175,55,0.1); }
+        .next-phase-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #d4af37, #b8960c);
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div><h1>🏰 THE CROWN'S SHADOW</h1></div>
+        <div class="phase-badge" id="phaseBadge">INTRIGUE</div>
+        <div class="room-code">Room: {{ room_code }}</div>
+    </div>
+
+    <div class="game-grid">
+        <!-- LEFT: Realm & Players -->
+        <div class="panel">
+            <h3>🌍 REALM STATUS</h3>
+            <div id="realmTracks"></div>
+            <h3 style="margin-top: 20px;">👥 HOUSES</h3>
+            <div id="playerList"></div>
+        </div>
+
+        <!-- CENTER: Game actions -->
+        <div class="panel">
+            <div class="decree-card">
+                <div>👑 KING'S DECREE 👑</div>
+                <div class="decree-text" id="decreeText">Loading...</div>
+            </div>
+            <h3>⚔️ ACTIONS</h3>
+            <div class="action-grid" id="actionGrid"></div>
+            <div class="log-area" id="logArea"><strong>📜 Court Whispers</strong><div id="logContent">Waiting for actions...</div></div>
+            <button class="next-phase-btn" id="nextPhaseBtn">⏩ NEXT PHASE</button>
+        </div>
+
+        <!-- RIGHT: Letters & Accusations -->
+        <div class="panel">
+            <h3>✉️ SEALED LETTERS</h3>
+            <div id="lettersList">No letters yet.</div>
+            <h3 style="margin-top: 20px;">⚖️ ACCUSATIONS</h3>
+            <div id="accusationsList">None.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const socket = io();
+    const roomCode = "{{ room_code }}";
+    let currentPlayer = null;
+    let currentPhase = "intrigue";
+
+    // Get player name from localStorage (set during house selection)
+    currentPlayer = localStorage.getItem('crown_player_name') || "Noble";
+
+    // DOM elements
+    const phaseBadge = document.getElementById('phaseBadge');
+    const decreeText = document.getElementById('decreeText');
+    const realmTracksDiv = document.getElementById('realmTracks');
+    const playerListDiv = document.getElementById('playerList');
+    const actionGrid = document.getElementById('actionGrid');
+    const logContent = document.getElementById('logContent');
+    const lettersList = document.getElementById('lettersList');
+    const accusationsList = document.getElementById('accusationsList');
+    const nextPhaseBtn = document.getElementById('nextPhaseBtn');
+
+    // Helper: update realm bars
+    function updateRealm(realm) {
+        const tracks = [
+            { key: 'faith', name: 'Faith', color: '#8b4513' },
+            { key: 'army', name: 'Army', color: '#8b2635' },
+            { key: 'grain', name: 'Grain', color: '#d4af37' },
+            { key: 'unrest', name: 'Unrest', color: '#ff6b35' }
+        ];
+        realmTracksDiv.innerHTML = tracks.map(t => `
+            <div class="track">
+                <div class="track-label"><span>${t.name}</span><span>${realm[t.key] || 50}</span></div>
+                <div class="track-bar"><div class="track-fill" style="width: ${realm[t.key] || 50}%; background: ${t.color};"></div></div>
+            </div>
+        `).join('');
+    }
+
+    // Update player list
+    function updatePlayers(players) {
+        if (!players.length) { playerListDiv.innerHTML = '<div>No players yet.</div>'; return; }
+        playerListDiv.innerHTML = players.map(p => `
+            <div class="player-card">
+                <div class="player-name"><span>${p.house_emoji} ${p.name}</span><span>⚡${p.influence}</span></div>
+                <div class="player-stats">
+                    <span>💰${p.gold}</span> <span>⭐${p.favor}</span> <span>🔥${p.scandal}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Update action buttons based on phase
+    function updateActions(phase) {
+        if (phase === 'intrigue') {
+            actionGrid.innerHTML = `
+                <button class="action-btn" data-action="💰 Fund Armies">💰 Fund Armies</button>
+                <button class="action-btn" data-action="🎭 Host Salon">🎭 Host Salon</button>
+                <button class="action-btn" data-action="💔 Blackmail">💔 Blackmail</button>
+                <button class="action-btn" data-action="✉️ Forge Letter">✉️ Forge Letter</button>
+            `;
+        } else if (phase === 'petition') {
+            actionGrid.innerHTML = `<div class="action-btn" style="grid-column: span 2;">Petition Phase: Reveal letters below</div>`;
+        } else if (phase === 'reckoning') {
+            actionGrid.innerHTML = `<div class="action-btn" style="grid-column: span 2;">Reckoning Phase: Vote on crisis</div>`;
+        }
+        // Attach event listeners to action buttons
+        document.querySelectorAll('.action-btn[data-action]').forEach(btn => {
+            btn.onclick = () => {
+                const action = btn.getAttribute('data-action');
+                if (action === '✉️ Forge Letter') {
+                    openLetterModal();
+                } else {
+                    socket.emit('take_action', { room: roomCode, name: currentPlayer, action: action });
+                }
+            };
+        });
+    }
+
+    // Letter writing modal
+    function openLetterModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>✉️ Write a Sealed Letter</h3>
+                <textarea id="letterContent" rows="4" placeholder="What does your letter claim? (e.g., 'Lord Stark is poisoning the grain')"></textarea>
+                <select id="proofType">
+                    <option value="none">No proof (risky)</option>
+                    <option value="forged">Forged proof (costs 2 gold, but may be detected)</option>
+                    <option value="real">Real proof (requires you have evidence)</option>
+                </select>
+                <input type="text" id="letterTarget" placeholder="Target house/person (optional)">
+                <button id="sendLetterBtn">Seal with Wax ✨</button>
+                <button id="closeModalBtn">Cancel</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('sendLetterBtn').onclick = () => {
+            const content = document.getElementById('letterContent').value;
+            const proof = document.getElementById('proofType').value;
+            const target = document.getElementById('letterTarget').value;
+            if (content) {
+                socket.emit('write_letter', { room: roomCode, author: currentPlayer, content: content, proof_type: proof, target: target });
+                modal.remove();
+            } else alert('Please write something in the letter.');
+        };
+        document.getElementById('closeModalBtn').onclick = () => modal.remove();
+    }
+
+    // Update letters list
+    function updateLetters(letters) {
+        if (!letters || letters.length === 0) { lettersList.innerHTML = '<div>No sealed letters.</div>'; return; }
+        lettersList.innerHTML = letters.map(l => `
+            <div class="letter-item" data-id="${l.id}" data-revealed="${l.revealed}">
+                <strong>✉️ Letter #${l.id}</strong> from ${l.author}<br>
+                ${l.revealed ? `<span style="color:#d4af37">"${l.content.substring(0,80)}"</span><br>${l.is_forged ? '⚠️ FORGERY DETECTED' : '✅ Verified'}` : '🔒 Sealed (click to reveal during Petition)'}
+            </div>
+        `).join('');
+        // Only allow reveal during petition phase
+        if (currentPhase === 'petition') {
+            document.querySelectorAll('.letter-item').forEach(el => {
+                const id = parseInt(el.dataset.id);
+                const revealed = el.dataset.revealed === 'true';
+                if (!revealed) {
+                    el.onclick = () => {
+                        socket.emit('reveal_letter', { room: roomCode, letter_id: id });
+                    };
+                }
+            });
+        }
+    }
+
+    // Update accusations list
+    function updateAccusations(accusations) {
+        if (!accusations || accusations.length === 0) { accusationsList.innerHTML = '<div>None yet.</div>'; return; }
+        accusationsList.innerHTML = accusations.map(a => `<div class="log-entry">⚠️ ${a}</div>`).join('');
+    }
+
+    // Socket event handlers
+    socket.on('connect', () => {
+        socket.emit('join_game', { room: roomCode });
+    });
+
+    socket.on('game_state', (data) => {
+        currentPhase = data.phase;
+        phaseBadge.innerText = data.phase.toUpperCase();
+        decreeText.innerText = data.decree.text || data.decree;
+        updateRealm(data.realm);
+        updatePlayers(data.players);
+        updateActions(data.phase);
+        if (data.letters) updateLetters(data.letters);
+        if (data.accusations) updateAccusations(data.accusations);
+    });
+
+    socket.on('update_phase', (data) => {
+        currentPhase = data.phase;
+        phaseBadge.innerText = data.phase.toUpperCase();
+        decreeText.innerText = data.decree.text || data.decree;
+        updateRealm(data.realm);
+        updateActions(data.phase);
+        // Add to log
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        logEntry.innerHTML = `📢 PHASE CHANGED: ${data.phase.toUpperCase()} (Season ${data.season})`;
+        logContent.prepend(logEntry);
+    });
+
+    socket.on('update_players', (players) => {
+        updatePlayers(players);
+    });
+
+    socket.on('action_update', (data) => {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `🕯️ ${data.player}: ${data.action}`;
+        logContent.prepend(entry);
+        if (logContent.children.length > 20) logContent.removeChild(logContent.lastChild);
+    });
+
+    socket.on('letter_revealed', (data) => {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `📜 Letter from ${data.author}: "${data.content.substring(0,80)}" ${data.is_forged ? '(FORGERY!)' : ''}`;
+        logContent.prepend(entry);
+        // Refresh letters list (optional, could request full state)
+        socket.emit('join_game', { room: roomCode }); // refresh
+    });
+
+    socket.on('open_letter_modal', () => {
+        openLetterModal();
+    });
+
+    socket.on('game_end', (manuscript) => {
+        window.location.href = `/manuscript/${roomCode}`;
+    });
+
+    socket.on('error', (err) => {
+        alert(err.message);
+    });
+
+    nextPhaseBtn.onclick = () => {
+        socket.emit('next_phase', { room: roomCode });
+    };
+</script>
+</body>
+</html>
+
